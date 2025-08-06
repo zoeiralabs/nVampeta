@@ -1,16 +1,25 @@
 {
-	"manifest_version": 2,
+	"manifest_version": 3,
 	"name": "nVampeta",
-	"version": "1.4",
-	"description": "Troque todas as imagens do site por fotos do Vampeta.",
+	"version": "2.0.0",
+	"description": "Troca todas as imagens do site por fotos do Vampeta.",
 	"icons": {
-    	"48": "icon48.png",
-        "128": "icon128.png"
-    },
+		"48": "icon48.png",
+		"128": "icon128.png"
+	},
 	"content_scripts": [
-	    {
-	      "matches": ["*://*/*"],
-	      "js": ["jquery.js", "nVampeta.js"]
-	    }
-  	]
+		{
+			"matches": ["*://*/*"],
+			"js": ["nVampeta.js"],
+			"run_at": "document_end"
+		}
+	],
+	"permissions": [],
+	"host_permissions": ["*://*/*"],
+	"web_accessible_resources": [
+		{
+			"resources": ["background/bg1.png"],
+			"matches": ["*://*/*"]
+		}
+	]
 }
