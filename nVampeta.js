@@ -1,12 +1,10 @@
-//nVampeta 
-(function ($) {
+//nVampeta - Modern Version (No jQuery)
+(function () {
+    'use strict';
 
-    var self = $.nVampeta = new function () { };
-
-    $.extend(self, {
-
+    const nVampeta = {
         nVampetaBackgrounds: [
-            'http://www.away.com.br/nvampeta/bg1.png'
+            chrome.runtime.getURL('background/bg1.png')
         ],
 
         nVampetaImgs: [
@@ -46,64 +44,307 @@
         ],
 
         handleImages: function (lstImgs, time) {
-            $.each($('img'), function (i, item) {
-                //Skip if image is already replaced
-                if ($.inArray($(item).attr('src'), lstImgs) == -1) {
-                    var h = $(item).height();
-                    var w = $(item).width();
+            const images = document.querySelectorAll('img:not([data-vampeta-processed])');
+            const pictures = document.querySelectorAll('picture:not([data-vampeta-processed])');
+            
+            // Handle regular img elements
+            images.forEach((img) => {
+                // Skip if image is a data URL or already processed
+                if (img.src.startsWith('data:') || lstImgs.includes(img.src) || 
+                    (img.srcset && lstImgs.includes(img.srcset)) ||
+                    (img.getAttribute('data-src') && lstImgs.includes(img.getAttribute('data-src')))) {
+                    return;
+                }
 
-                    //If image loaded
-                    if (h > 0 && w > 0) {
-                        //Replace
-                        $(item).css('width', w + 'px').css('height', h + 'px');
-                        $(item).attr('src', lstImgs[Math.floor(Math.random() * lstImgs.length)]);
+                // Mark as processed to avoid reprocessing
+                img.setAttribute('data-vampeta-processed', 'true');
+
+                const replaceImage = () => {
+                    const rect = img.getBoundingClientRect();
+                    const originalWidth = img.offsetWidth || img.naturalWidth || rect.width;
+                    const originalHeight = img.offsetHeight || img.naturalHeight || rect.height;
+
+                    if (originalWidth > 10 && originalHeight > 10) { // Only replace reasonably sized images
+                        // Preserve original dimensions
+                        img.style.width = originalWidth + 'px';
+                        img.style.height = originalHeight + 'px';
+                        img.style.objectFit = 'cover';
+                        
+                        // Replace with random Vampeta image
+                        const randomIndex = Math.floor(Math.random() * lstImgs.length);
+                        const vampetaImage = lstImgs[randomIndex];
+                        
+                        img.src = vampetaImage;
+                        img.alt = 'Vampeta';
+                        
+                        // Also replace srcset if it exists (for responsive/lazy loading images)
+                        if (img.srcset) {
+                            img.srcset = vampetaImage;
+                        }
+                        
+                        // Replace data-src and data-srcset for lazy loading
+                        if (img.getAttribute('data-src')) {
+                            img.setAttribute('data-src', vampetaImage);
+                        }
+                        if (img.getAttribute('data-srcset')) {
+                            img.setAttribute('data-srcset', vampetaImage);
+                        }
+                        
+                        // Add a subtle fade effect
+                        img.style.transition = 'opacity 0.3s ease-in-out';
+                        img.style.opacity = '0';
+                        setTimeout(() => {
+                            img.style.opacity = '1';
+                        }, 50);
                     }
-                    else {
-                        //Replace when loaded
-                        $(item).load(function () {
-                            //Prevent 'infinite' loop
-                            if ($.inArray($(item).attr('src'), lstImgs) == -1) {
-                                var h = $(item).height();
-                                var w = $(item).width();
-                                $(item).css('width', w + 'px').css('height', h + 'px');
-                                $(item).attr('src', lstImgs[Math.floor(Math.random() * lstImgs.length)]);
+                };
+
+                // If image is already loaded
+                if (img.complete && img.naturalWidth > 0) {
+                    replaceImage();
+                } else {
+                    // Wait for image to load
+                    const handleLoad = () => {
+                        replaceImage();
+                        img.removeEventListener('load', handleLoad);
+                        img.removeEventListener('error', handleLoad);
+                    };
+                    
+                    img.addEventListener('load', handleLoad);
+                    img.addEventListener('error', handleLoad);
+                }
+            });
+
+            // Handle picture elements and their source elements
+            pictures.forEach((picture) => {
+                picture.setAttribute('data-vampeta-processed', 'true');
+                
+                const sources = picture.querySelectorAll('source');
+                const img = picture.querySelector('img');
+                
+                // Replace source elements' srcset
+                sources.forEach((source) => {
+                    if (source.srcset && !source.srcset.startsWith('data:')) {
+                        const randomIndex = Math.floor(Math.random() * lstImgs.length);
+                        source.srcset = lstImgs[randomIndex];
+                    }
+                });
+                
+                // Also handle the img element within picture if it exists
+                if (img && !img.getAttribute('data-vampeta-processed')) {
+                    img.setAttribute('data-vampeta-processed', 'true');
+                    
+                    const replaceImage = () => {
+                        const rect = img.getBoundingClientRect();
+                        const originalWidth = img.offsetWidth || img.naturalWidth || rect.width;
+                        const originalHeight = img.offsetHeight || img.naturalHeight || rect.height;
+
+                        if (originalWidth > 10 && originalHeight > 10) {
+                            img.style.width = originalWidth + 'px';
+                            img.style.height = originalHeight + 'px';
+                            img.style.objectFit = 'cover';
+                            
+                            const randomIndex = Math.floor(Math.random() * lstImgs.length);
+                            const vampetaImage = lstImgs[randomIndex];
+                            
+                            img.src = vampetaImage;
+                            img.alt = 'Vampeta';
+                            
+                            // Also replace srcset if it exists (for responsive/lazy loading images)
+                            if (img.srcset) {
+                                img.srcset = vampetaImage;
                             }
-                        });
+                            
+                            // Replace data-src and data-srcset for lazy loading
+                            if (img.getAttribute('data-src')) {
+                                img.setAttribute('data-src', vampetaImage);
+                            }
+                            if (img.getAttribute('data-srcset')) {
+                                img.setAttribute('data-srcset', vampetaImage);
+                            }
+                            
+                            img.style.transition = 'opacity 0.3s ease-in-out';
+                            img.style.opacity = '0';
+                            setTimeout(() => {
+                                img.style.opacity = '1';
+                            }, 50);
+                        }
+                    };
+
+                    if (img.complete && img.naturalWidth > 0) {
+                        replaceImage();
+                    } else {
+                        const handleLoad = () => {
+                            replaceImage();
+                            img.removeEventListener('load', handleLoad);
+                            img.removeEventListener('error', handleLoad);
+                        };
+                        
+                        img.addEventListener('load', handleLoad);
+                        img.addEventListener('error', handleLoad);
                     }
                 }
             });
 
-            //Keep replacing
+            // Handle dynamically added images
+            this.observeNewImages(lstImgs);
+
+            // Schedule next replacement for new images
             if (time > 0) {
-                setTimeout(function () { self.handleImages(lstImgs, time); }, time);
+                setTimeout(() => {
+                    this.handleImages(lstImgs, time);
+                }, time);
             }
         },
 
-        handleLogo: function (bgImgs, time) {
-            $backgroundImages = $(
-                '[class*=logo], [class*=header], [id*=header], [id*=logo],' +
-                '[class*=logo] span, [class*=header] span, [id*=header] span, [id*=logo] span,' +
-                '[class*=logo] h1, [class*=header] h1, [id*=header] h1, [id*=logo] h1,' +
-                '[class*=logo] a, [class*=header] a, [id*=header] a, [id*=logo] a'
-            )
-                .filter(function () {
-                    backgroundImg = $(this).css('background-image');
-                    return backgroundImg && backgroundImg != 'none';
-                }
-                );
+        observeNewImages: function(lstImgs) {
+            if (this.imageObserver) return; // Observer already exists
 
-            $backgroundImages.each(function (i, item) {
-                $(item).css('background-image', 'url(' + bgImgs[Math.floor(Math.random() * bgImgs.length)] + ')');
-                $(item).css('background-position', '0 0');
-                $(item).css('background-repeat', 'no-repeat');
-                $(item).css('background-size', 'contain');
+            this.imageObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Check if the added node is an image
+                            if (node.tagName === 'IMG') {
+                                this.processNewImage(node, lstImgs);
+                            }
+                            // Check if the added node is a picture element
+                            if (node.tagName === 'PICTURE') {
+                                this.processNewPicture(node, lstImgs);
+                            }
+                            // Check for images and pictures within added nodes
+                            const images = node.querySelectorAll && node.querySelectorAll('img');
+                            if (images) {
+                                images.forEach(img => this.processNewImage(img, lstImgs));
+                            }
+                            const pictures = node.querySelectorAll && node.querySelectorAll('picture');
+                            if (pictures) {
+                                pictures.forEach(picture => this.processNewPicture(picture, lstImgs));
+                            }
+                        }
+                    });
+                });
             });
-        }
-    });
 
-    //Run on jQuery ready
-    $(function () {
-        self.handleImages(self.nVampetaImgs, 3000);
-        self.handleLogo(self.nVampetaBackgrounds, 3000);
-    });
-})(jQuery);
+            this.imageObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        },
+
+        processNewImage: function(img, lstImgs) {
+            if (img.getAttribute('data-vampeta-processed') || img.src.startsWith('data:') || 
+                lstImgs.includes(img.src) || (img.srcset && lstImgs.includes(img.srcset)) ||
+                (img.getAttribute('data-src') && lstImgs.includes(img.getAttribute('data-src')))) {
+                return;
+            }
+
+            img.setAttribute('data-vampeta-processed', 'true');
+            
+            const replaceWhenReady = () => {
+                const rect = img.getBoundingClientRect();
+                const width = img.offsetWidth || img.naturalWidth || rect.width;
+                const height = img.offsetHeight || img.naturalHeight || rect.height;
+
+                if (width > 10 && height > 10) {
+                    img.style.width = width + 'px';
+                    img.style.height = height + 'px';
+                    img.style.objectFit = 'cover';
+                    
+                    const randomIndex = Math.floor(Math.random() * lstImgs.length);
+                    const vampetaImage = lstImgs[randomIndex];
+                    
+                    img.src = vampetaImage;
+                    img.alt = 'Vampeta';
+                    
+                    // Also replace srcset if it exists (for responsive/lazy loading images)
+                    if (img.srcset) {
+                        img.srcset = vampetaImage;
+                    }
+                    
+                    // Replace data-src and data-srcset for lazy loading
+                    if (img.getAttribute('data-src')) {
+                        img.setAttribute('data-src', vampetaImage);
+                    }
+                    if (img.getAttribute('data-srcset')) {
+                        img.setAttribute('data-srcset', vampetaImage);
+                    }
+                }
+            };
+
+            if (img.complete) {
+                replaceWhenReady();
+            } else {
+                img.addEventListener('load', replaceWhenReady, { once: true });
+            }
+        },
+
+        processNewPicture: function(picture, lstImgs) {
+            if (picture.getAttribute('data-vampeta-processed')) {
+                return;
+            }
+
+            picture.setAttribute('data-vampeta-processed', 'true');
+            
+            const sources = picture.querySelectorAll('source');
+            const img = picture.querySelector('img');
+            
+            // Replace source elements' srcset
+            sources.forEach((source) => {
+                if (source.srcset && !source.srcset.startsWith('data:')) {
+                    const randomIndex = Math.floor(Math.random() * lstImgs.length);
+                    source.srcset = lstImgs[randomIndex];
+                }
+            });
+            
+            // Also handle the img element within picture if it exists
+            if (img && !img.getAttribute('data-vampeta-processed')) {
+                this.processNewImage(img, lstImgs);
+            }
+        },
+
+        handleLogo: function (bgImgs) {
+            const selectors = [
+                '[class*=logo]', '[class*=header]', '[id*=header]', '[id*=logo]',
+                '[class*=logo] span', '[class*=header] span', '[id*=header] span', '[id*=logo] span',
+                '[class*=logo] h1', '[class*=header] h1', '[id*=header] h1', '[id*=logo] h1',
+                '[class*=logo] a', '[class*=header] a', '[id*=header] a', '[id*=logo] a'
+            ];
+
+            const elements = document.querySelectorAll(selectors.join(', '));
+            
+            elements.forEach((element) => {
+                const backgroundImage = window.getComputedStyle(element).backgroundImage;
+                
+                if (backgroundImage && backgroundImage !== 'none' && !element.getAttribute('data-vampeta-logo-processed')) {
+                    element.setAttribute('data-vampeta-logo-processed', 'true');
+                    
+                    const randomIndex = Math.floor(Math.random() * bgImgs.length);
+                    element.style.backgroundImage = `url(${bgImgs[randomIndex]})`;
+                    element.style.backgroundPosition = 'center';
+                    element.style.backgroundRepeat = 'no-repeat';
+                    element.style.backgroundSize = 'contain';
+                }
+            });
+        },
+
+        init: function() {
+            // Start the image replacement
+            this.handleImages(this.nVampetaImgs, 5000);
+            this.handleLogo(this.nVampetaBackgrounds);
+            
+            // Handle logo replacement for dynamically added content
+            setInterval(() => {
+                this.handleLogo(this.nVampetaBackgrounds);
+            }, 10000);
+        }
+    };
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => nVampeta.init());
+    } else {
+        nVampeta.init();
+    }
+
+})();
